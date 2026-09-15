@@ -97,6 +97,18 @@ curl -N -X POST http://localhost:8000/api/research \
   -d '{"query":"What is driving harissa demand in UK retail?","max_results":8,"keep":6}'
 ```
 
+## Deploying to Vercel
+
+The repo is Vercel-ready: `pyproject.toml` points the Python runtime at
+`app.main:app`, and streaming is on by default for Python functions, so the
+SSE pipeline works unchanged.
+
+1. [Import the repo](https://vercel.com/new) from GitHub.
+2. Add the environment variables in **Settings → Environment Variables**:
+   `TAVILY_API_KEY` and `NEBIUS_API_KEY` (plus the `NEBIUS_STORAGE_*` block if
+   you want the archive step).
+3. Deploy. Pushes to `main` redeploy automatically.
+
 ## Deploying to Nebius AI Cloud
 
 ```bash
