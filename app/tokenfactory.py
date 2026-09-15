@@ -23,6 +23,18 @@ _NON_CHAT_MARKERS = (
 # Preferred families when picking a default, best first.
 _PREFERRED = ("instruct", "gpt-oss", "chat", "-it")
 
+_EMBEDDING_MARKERS = ("embed", "bge-", "e5-", "gte-")
+
+
+def is_embedding_model(model_id: str) -> bool:
+    lowered = model_id.lower()
+    return any(m in lowered for m in _EMBEDDING_MARKERS) and "guard" not in lowered
+
+
+# The resolved embedding model actually used for the last successful call, so
+# the UI can report what ranked the sources.
+last_embedding_model = ""
+
 
 def is_chat_model(model_id: str) -> bool:
     """True when a model ID looks like a text/chat model rather than an embedder."""
@@ -75,13 +87,28 @@ async def default_chat_model() -> str:
     return _cached_default
 
 
-async def embed(texts: List[str], model: Optional[str] = None) -> List[List[float]]:
-    """Embed a batch of texts. Used to semantically rerank Tavily sources."""
+_cached_embedding_model: Optional[str] = None
+
+
+async def auto_embedding_model() -> str:
+    """First embedding model actually available on this account."""
+    global _cached_embedding_model
+    if _cached_embedding_model:
+        return _cached_embedding_model
+
+    embedders = [m for m in await list_models() if is_embedding_model(m)]
+    if not embedders:
+        raise TokenFactoryError("No embedding model is available on this account")
+    _cached_embedding_model = embedders[0]
+    return _cached_embedding_model
+
+
+async def _embed_call(texts: List[str], model: str) -> List[List[float]]:
     async with httpx.AsyncClient(timeout=60) as client:
         response = await client.post(
             f"{settings.nebius_base_url}/embeddings",
             headers=_headers(),
-            json={"model": model or settings.embedding_model, "input": texts},
+            json={"model": model, "input": texts},
         )
     if response.status_code >= 400:
         raise TokenFactoryError(
@@ -89,6 +116,31 @@ async def embed(texts: List[str], model: Optional[str] = None) -> List[List[floa
         )
     data = sorted(response.json()["data"], key=lambda d: d.get("index", 0))
     return [d["embedding"] for d in data]
+
+
+async def embed(texts: List[str], model: Optional[str] = None) -> List[List[float]]:
+    """Embed a batch of texts. Used to semantically rerank Tavily sources.
+
+    Accounts differ in which embedding models they carry, so a configured model
+    that the account doesn't have falls back to one it does rather than
+    dropping the rerank step.
+    """
+    global last_embedding_model
+
+    chosen = model or settings.embedding_model or await auto_embedding_model()
+    try:
+        vectors = await _embed_call(texts, chosen)
+    except TokenFactoryError as exc:
+        if "does not exist" not in str(exc) and "404" not in str(exc):
+            raise
+        fallback = await auto_embedding_model()
+        if fallback == chosen:
+            raise
+        vectors = await _embed_call(texts, fallback)
+        chosen = fallback
+
+    last_embedding_model = chosen
+    return vectors
 
 
 async def stream_chat(

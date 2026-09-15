@@ -34,9 +34,8 @@ class Settings:
         ).rstrip("/")
     )
     nebius_model: str = field(default_factory=lambda: _clean("NEBIUS_MODEL"))
-    embedding_model: str = field(
-        default_factory=lambda: _clean("NEBIUS_EMBEDDING_MODEL", "BAAI/bge-en-icl")
-    )
+    # Blank means "ask the account which embedding model it has".
+    embedding_model: str = field(default_factory=lambda: _clean("NEBIUS_EMBEDDING_MODEL"))
 
     # Nebius AI Cloud Object Storage (optional)
     bucket: str = field(default_factory=lambda: _clean("NEBIUS_STORAGE_BUCKET"))

@@ -299,6 +299,7 @@ const $ = (id) => document.getElementById(id);
 let sources = [];
 let raw = '';
 let meta = {};
+let ticker = null;
 
 const esc = (t) => t.replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
 
@@ -316,8 +317,22 @@ function setStep(id, status, detail) {
   step.className = 'step' + (status === 'running' ? ' active' : status === 'done' ? ' done'
     : status === 'warn' ? ' done warn' : '');
   $(`mark-${id}`).innerHTML = status === 'running' ? '<span class="spin"></span>' : '';
-  if (detail) $(`sub-${id}`).textContent = detail;
-  else if (status === 'skipped') $(`sub-${id}`).textContent = 'skipped';
+
+  clearInterval(ticker);
+  if (status === 'running') {
+    const label = STEPS.find((s) => s.id === id).hint;
+    const started = Date.now();
+    const tick = () => {
+      const sub = $(`sub-${id}`);
+      if (sub) sub.textContent = `${label} · ${Math.round((Date.now() - started) / 1000)}s`;
+    };
+    tick();
+    ticker = setInterval(tick, 1000);
+  } else if (detail) {
+    $(`sub-${id}`).textContent = detail;
+  } else if (status === 'skipped') {
+    $(`sub-${id}`).textContent = 'skipped';
+  }
 }
 
 // Small markdown subset: ## headings, bullets, **bold**, [n] citations.
@@ -413,7 +428,8 @@ async function scout(event) {
   $('pipeline').hidden = false;
   $('results').hidden = false;
   $('sources').innerHTML = '';
-  $('brief').innerHTML = '<div class="skeleton"><span style="width:82%"></span><span style="width:95%"></span><span style="width:70%"></span></div>';
+  $('brief').innerHTML = '<p style="color:var(--ink-faint);font-size:13px;margin:0 0 14px">Reading sources and writing your briefing — usually 20–30 seconds.</p>'
+    + '<div class="skeleton"><span style="width:82%"></span><span style="width:95%"></span><span style="width:70%"></span></div>';
   renderPipeline();
   $('pipeline').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
@@ -460,6 +476,7 @@ async function scout(event) {
     fail(err.message);
     paintBrief(false);
   } finally {
+    clearInterval(ticker);
     $('goBtn').disabled = false;
     $('goBtn').textContent = 'Scout it';
   }

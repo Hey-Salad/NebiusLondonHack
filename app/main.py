@@ -29,7 +29,12 @@ class ResearchRequest(BaseModel):
 
 @app.get("/")
 async def index() -> FileResponse:
-    return FileResponse(str(WEB_DIR / "index.html"))
+    # no-cache so a redeployed or edited page is never served stale from the
+    # browser cache - the page is small and always revalidates cheaply.
+    return FileResponse(
+        str(WEB_DIR / "index.html"),
+        headers={"Cache-Control": "no-cache, must-revalidate"},
+    )
 
 
 @app.get("/api/health")

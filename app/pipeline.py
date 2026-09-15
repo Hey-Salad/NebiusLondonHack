@@ -49,7 +49,8 @@ async def _rerank(query: str, sources: List[Dict[str, Any]], keep: int) -> Dict[
         source["relevance"] = round(_cosine(query_vec, vec), 4)
 
     ranked = sorted(sources, key=lambda s: s["relevance"], reverse=True)[:keep]
-    return {"sources": ranked, "model": settings.embedding_model}
+    used = tokenfactory.last_embedding_model or settings.embedding_model or "auto"
+    return {"sources": ranked, "model": used}
 
 
 def _build_prompt(query: str, sources: List[Dict[str, Any]]) -> List[Dict[str, str]]:
