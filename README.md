@@ -26,9 +26,13 @@ Every stage reports itself in the UI, so you can see exactly which service did w
 ```bash
 git clone https://github.com/Hey-Salad/NebiusLondonHack.git
 cd NebiusLondonHack
-cp .env.example .env    # add your keys
-./run.sh
+./setkeys.sh
 ```
+
+`setkeys.sh` prompts for your two API keys with the input hidden, writes them
+into `.env` without disturbing anything else, and starts the app. Press Enter at
+a prompt to keep the key already there. After that, `./run.sh` on its own is
+enough.
 
 Then open **http://localhost:8000**.
 
