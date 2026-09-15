@@ -10,7 +10,12 @@ load_dotenv()
 
 
 def _clean(name: str, default: str = "") -> str:
-    return (os.getenv(name) or default).strip()
+    value = (os.getenv(name) or default).strip()
+    # Treat leftover placeholders ("your-key-here", "tvly-xxxx...") as unset, so
+    # the UI says "add your key" instead of the API returning a bare 401.
+    if "xxxx" in value.lower() or value.lower().startswith("your-"):
+        return ""
+    return value
 
 
 @dataclass
